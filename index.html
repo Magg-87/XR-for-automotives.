@@ -1,0 +1,174 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<title>AR Car Customizer — XR for Automotives</title>
+<script type="module" src="https://ajax.googleapis.com/ajax/libs/model-viewer/3.5.0/model-viewer.min.js"></script>
+<style>
+:root{--bg:#111318;--panel:rgba(25,28,34,.93);--line:#303640;--amber:#f2a63b;--mint:#57d9a3;--text:#eef1f5;--dim:#9aa3ad}
+*{box-sizing:border-box}html,body{margin:0;height:100%;overflow:hidden;background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif}
+model-viewer{width:100%;height:100%;background:radial-gradient(circle at 50% 40%,#292d34,#111318 72%)}
+.brand{position:fixed;top:0;left:0;right:0;padding:14px 16px 18px;z-index:20;pointer-events:none;background:linear-gradient(#111318ee,#11131800)}
+.brand h1{margin:0;font-size:15px;font-weight:800;letter-spacing:.14em;text-transform:uppercase}.brand h1 span{color:var(--amber)}
+.brand p{margin:3px 0 0;font-size:11.5px;color:var(--dim);letter-spacing:.05em}
+.dock{position:fixed;bottom:0;left:0;right:0;z-index:20;padding:10px 12px calc(12px + env(safe-area-inset-bottom));display:flex;flex-direction:column;gap:9px;align-items:center;background:linear-gradient(#11131800,#111318ef 35%)}
+.tabs{display:flex;width:100%;max-width:520px;gap:6px;padding:5px;background:var(--panel);border:1px solid var(--line);border-radius:15px}
+.tab{flex:1;border:0;background:transparent;color:var(--dim);padding:9px 5px;border-radius:10px;font-size:12px;font-weight:700}.tab.active{background:#ffffff12;color:var(--text)}
+.panel{display:none;width:100%;max-width:520px}.panel.active{display:block}
+.swatches{display:flex;justify-content:center;gap:10px;flex-wrap:wrap;padding:9px 12px;background:var(--panel);border:1px solid var(--line);border-radius:18px;backdrop-filter:blur(10px)}
+.sw{width:38px;height:38px;border-radius:50%;border:2px solid #ffffff30;cursor:pointer;transition:.12s transform,.12s border-color}.sw.on{border-color:#fff;transform:scale(1.12)}
+.row{display:flex;gap:8px;width:100%;max-width:520px}.btn{flex:1;padding:12px 10px;border-radius:12px;border:1px solid var(--line);background:var(--panel);color:var(--text);font-size:13px;font-weight:700;cursor:pointer;backdrop-filter:blur(10px)}
+.btn.primary{background:var(--amber);color:#111318;border-color:var(--amber)}
+#status,.modal{position:fixed;inset:0;z-index:40;background:#090b0ef5}.modal{display:none;flex-direction:column;padding:22px;overflow:auto}.modal.show{display:flex}
+#status{z-index:30;display:flex;flex-direction:column;justify-content:center;align-items:center;text-align:center;padding:32px;gap:12px}.spin{width:34px;height:34px;border:3px solid #ffffff20;border-top-color:var(--amber);border-radius:50%;animation:spin .8s linear infinite}@keyframes spin{to{transform:rotate(360deg)}}
+#status.hide{display:none}.modal h3{margin:0 0 10px;font-size:16px}.note{font-size:12px;color:var(--dim);line-height:1.5}
+code{display:block;font-size:12px;color:var(--mint);padding:7px 10px;background:#ffffff0d;border-radius:7px;margin-bottom:5px;word-break:break-all}
+#shot{justify-content:center;align-items:center}#shot img{max-width:100%;max-height:62vh;border-radius:12px;border:1px solid var(--line)}#shot .tip{font-size:13px;color:var(--dim);text-align:center;line-height:1.5;max-width:340px}
+</style>
+</head>
+<body>
+
+<script>
+const CLUB="@yourclubhandle";
+const HASHTAG="#XRAutomotiveHack";
+const REGISTER="https://forms.gle/YOURFORMID";
+</script>
+
+<model-viewer id="mv" src="car.glb" alt="Customizable car"
+  ar ar-modes="webxr scene-viewer quick-look"
+  camera-controls touch-action="pan-y"
+  auto-rotate auto-rotate-delay="1200" rotation-per-second="14deg"
+  shadow-intensity="1.1" environment-image="neutral" exposure="1.15"
+  camera-orbit="35deg 72deg auto"></model-viewer>
+
+<div class="brand"><h1>XR for <span>Automotives</span></h1><p>Paint it. Place it. Post it.</p></div>
+
+<div class="dock">
+  <div class="tabs">
+    <button class="tab active" data-panel="paint">🎨 Paint</button>
+    <button class="tab" data-panel="wheels">⚙ Wheels</button>
+    <button class="tab" data-panel="lights">💡 Lights</button>
+  </div>
+  <div id="paint" class="panel active"><div class="swatches" id="paintSwatches"></div></div>
+  <div id="wheels" class="panel"><div class="swatches" id="wheelSwatches"></div></div>
+  <div id="lights" class="panel"><div class="swatches" id="lightSwatches"></div></div>
+  <div class="row">
+    <button class="btn primary" id="photo">📸 Save Photo</button>
+    <button class="btn" id="ar">View in AR</button>
+    <button class="btn" id="info">Materials</button>
+  </div>
+  <div class="row"><button class="btn" id="reset">Reset</button><button class="btn" id="reg">Hackathon Entry →</button></div>
+</div>
+
+<div id="status"><div class="spin"></div><h2>Loading the car…</h2><p>Loading CAR4.glb.</p></div>
+
+<div id="mats" class="modal">
+  <h3>CAR4 Material Inspector</h3>
+  <div id="matList"></div>
+  <p class="note">CAR4 uses a body material plus two wheel material slots. The wheel control targets the wheel-rim material without recoloring the tire.</p>
+  <div class="row"><button class="btn" id="paintAll">Paint body</button><button class="btn" id="matClose">Close</button></div>
+</div>
+
+<div id="shot" class="modal">
+  <img id="shotImg" alt="Your customized car">
+  <div class="tip">Save the image, then post it tagging <b id="tipTag"></b> with <b id="tipHash"></b>.</div>
+  <div class="row" style="max-width:360px"><button class="btn" id="shotClose">Back</button><a class="btn primary" id="shotDl" download="my-xr-car.png" style="text-align:center;text-decoration:none;line-height:1.5">Download</a></div>
+</div>
+
+<script>
+const mv=document.getElementById("mv"), statusBox=document.getElementById("status");
+const PAINT=[
+ ["#e33b2e","Red"],["#2f7de1","Blue"],["#15171a","Black"],
+ ["#f2f4f7","White"],["#57d9a3","Mint"],["#f2a63b","Yellow"]
+];
+const WHEELS=[
+ ["#15171a","Black"],["#aeb4bc","Silver"],["#e3e5e8","Chrome"],["#c98b3b","Gold"]
+];
+const LIGHTS=[
+ ["#e33b2e","Red"],["#f2f4f7","White"],["#2f7de1","Blue"],["#f2a63b","Amber"]
+];
+
+let loaded=false;
+let originals=[];
+const BODY_MATERIALS=["Material","Material.001","Material.002","Material.005","Material.009"];
+const LIGHT_MATERIAL="Lights";
+const WHEEL_MATERIAL="Material.012";
+const WHEEL_SECONDARY="Material.013";
+
+function mats(){return mv.model?.materials||[]}
+function get(name){return mats().find(m=>m.name===name)}
+function rgba(hex){const h=hex.replace("#","");return [parseInt(h.slice(0,2),16)/255,parseInt(h.slice(2,4),16)/255,parseInt(h.slice(4,6),16)/255,1]}
+function setColor(m,hex,metal=.15,rough=.3){
+ if(!m)return;
+ try{m.pbrMetallicRoughness.setBaseColorFactor(rgba(hex));m.pbrMetallicRoughness.setMetallicFactor(metal);m.pbrMetallicRoughness.setRoughnessFactor(rough)}catch(e){console.warn(m.name,e)}
+}
+function remember(){
+ originals=mats().map(m=>({m,color:m.pbrMetallicRoughness.getBaseColorFactor(),metal:m.pbrMetallicRoughness.getMetallicFactor(),rough:m.pbrMetallicRoughness.getRoughnessFactor()}))
+}
+function applyPaint(hex){BODY_MATERIALS.forEach(n=>setColor(get(n),hex,.35,.28))}
+function applyWheels(hex){
+ setColor(get(WHEEL_MATERIAL),hex,.8,.16);
+ setColor(get(WHEEL_SECONDARY),hex,.8,.2);
+}
+function applyLights(hex){setColor(get(LIGHT_MATERIAL),hex,.15,.2)}
+function reset(){
+ originals.forEach(o=>{try{o.m.pbrMetallicRoughness.setBaseColorFactor(o.color);o.m.pbrMetallicRoughness.setMetallicFactor(o.metal);o.m.pbrMetallicRoughness.setRoughnessFactor(o.rough)}catch(e){}});
+}
+function swatches(id,data,fn){
+ const box=document.getElementById(id);box.innerHTML="";
+ data.forEach(([hex,name],i)=>{
+   const b=document.createElement("button");b.className="sw"+(i===0?" on":"");b.style.background=hex;b.title=name;b.setAttribute("aria-label",name);
+   b.onclick=()=>{box.querySelectorAll(".sw").forEach(x=>x.classList.remove("on"));b.classList.add("on");fn(hex)};
+   box.appendChild(b);
+ });
+}
+function buildMaterials(){
+ document.getElementById("matList").innerHTML=mats().map((m,i)=>`<code>${i}: ${m.name||"(unnamed)"}</code>`).join("")||"<code>No materials exposed.</code>";
+}
+document.querySelectorAll(".tab").forEach(t=>t.onclick=()=>{
+ document.querySelectorAll(".tab").forEach(x=>x.classList.remove("active"));
+ document.querySelectorAll(".panel").forEach(x=>x.classList.remove("active"));
+ t.classList.add("active");document.getElementById(t.dataset.panel).classList.add("active");
+});
+mv.addEventListener("load",()=>{
+ loaded=true;statusBox.classList.add("hide");remember();
+ swatches("paintSwatches",PAINT,applyPaint);
+ swatches("wheelSwatches",WHEELS,applyWheels);
+ swatches("lightSwatches",LIGHTS,applyLights);
+ buildMaterials();
+ console.log("CAR4 materials:",mats().map(m=>m.name));
+});
+mv.addEventListener("error",()=>{statusBox.innerHTML="<h2 style='color:#e35b40'>CAR4 didn't load</h2><p>Check that index.html and car.glb are in the same GitHub Pages folder.</p>"});
+setTimeout(()=>{if(!loaded)statusBox.innerHTML="<h2 style='color:#e35b40'>Still loading…</h2><p>Check the browser console and confirm car.glb is beside index.html.</p>"},12000);
+
+document.getElementById("info").onclick=()=>{buildMaterials();document.getElementById("mats").classList.add("show")};
+document.getElementById("matClose").onclick=()=>document.getElementById("mats").classList.remove("show");
+document.getElementById("paintAll").onclick=()=>applyPaint("#2f7de1");
+document.getElementById("reset").onclick=reset;
+document.getElementById("ar").onclick=()=>{if(mv.canActivateAR)mv.activateAR();else alert("AR is not available in this browser. Try a supported phone browser.")};
+
+document.getElementById("tipTag").textContent=CLUB;
+document.getElementById("tipHash").textContent=HASHTAG;
+document.getElementById("photo").onclick=async()=>{
+ try{
+  const blob=await mv.toBlob({idealAspect:false,mimeType:"image/png"});
+  const img=new Image();
+  img.onload=()=>{
+   const c=document.createElement("canvas");c.width=img.width;c.height=img.height;
+   const g=c.getContext("2d");g.drawImage(img,0,0);
+   const pad=Math.round(c.width*.045),big=Math.round(c.width*.052),sml=Math.round(c.width*.034);
+   g.font="700 "+big+"px sans-serif";g.fillStyle="#fff";g.fillText("XR for ",pad,pad+big);
+   const w=g.measureText("XR for ").width;g.fillStyle="#f2a63b";g.fillText("Automotives",pad+w,pad+big);
+   g.fillStyle="rgba(12,14,17,.72)";g.fillRect(0,c.height-sml*2.9,c.width,sml*2.9);
+   g.font="600 "+sml+"px sans-serif";g.fillStyle="#57d9a3";g.fillText(HASHTAG,pad,c.height-sml*1.05);
+   g.textAlign="right";g.fillStyle="#9aa3ad";g.fillText(CLUB,c.width-pad,c.height-sml*1.05);
+   c.toBlob(b=>{const url=URL.createObjectURL(b);document.getElementById("shotImg").src=url;document.getElementById("shotDl").href=url;document.getElementById("shot").classList.add("show")},"image/png");
+  };img.src=URL.createObjectURL(blob);
+ }catch(e){alert("Screenshot failed on this browser. Use the phone's normal screenshot.");}
+};
+document.getElementById("shotClose").onclick=()=>document.getElementById("shot").classList.remove("show");
+document.getElementById("reg").onclick=()=>window.open(REGISTER,"_blank");
+</script>
+</body>
+</html>
